@@ -41,7 +41,7 @@ export const getAllPlayers = async () => {
   }
 };
 
-// NEW: Get current week groups
+// Get current week groups
 export const getCurrentGroups = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/current-groups`, {
@@ -60,7 +60,7 @@ export const getCurrentGroups = async () => {
   }
 };
 
-// NEW: Get last week groups
+// Get last week groups
 export const getLastGroups = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/last-groups`, {
@@ -79,7 +79,7 @@ export const getLastGroups = async () => {
   }
 };
 
-// NEW: Admin function to manually form groups
+// Admin function to manually form groups
 export const formGroups = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/form-groups`, {
@@ -97,37 +97,41 @@ export const formGroups = async () => {
   }
 };
 
-// NEW: Check if groups should be formed (for monitoring)
-export const checkGroupFormation = async () => {
+// Submit ranking - REMOVED TIME CONSTRAINTS
+export const submitRanking = async (position, groupSize, playerId = null) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/players/should-form-groups`, {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    });
-    
-    return await handleResponse(response);
-  } catch (error) {
-    console.error('Check group formation error:', error);
-    return {
-      success: false,
-      message: error.message || 'Failed to check group formation'
+    const requestBody = {
+      position: parseInt(position),
+      groupSize: parseInt(groupSize),
+      adminOverride: true, // Always allow admin submissions
+      bypassTimeCheck: true // Bypass any time restrictions
     };
-  }
-};
 
-// Submit ranking (updated)
-export const submitRanking = async (position, groupSize) => {
-  try {
+    // If playerId is provided (admin functionality), include it
+    if (playerId) {
+      requestBody.playerId = playerId;
+      console.log('Admin submission for player:', playerId, 'with data:', requestBody);
+    } else {
+      console.log('Regular submission with data:', requestBody);
+    }
+
     const response = await fetch(`${API_BASE_URL}/players/submit-ranking`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        position: parseInt(position),
-        groupSize: parseInt(groupSize)
-      }),
+      body: JSON.stringify(requestBody),
     });
+
+    console.log('Submit ranking response status:', response.status);
     
-    return await handleResponse(response);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      console.error('Submit ranking error response:', errorData);
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Submit ranking success response:', data);
+    return data;
   } catch (error) {
     console.error('Submit ranking error:', error);
     return {
@@ -137,7 +141,65 @@ export const submitRanking = async (position, groupSize) => {
   }
 };
 
-// Add self as player (existing)
+// Admin function to submit ranking for specific player - REMOVED TIME CONSTRAINTS
+export const submitRankingForPlayer = async (playerId, position, groupSize) => {
+  try {
+    console.log('Admin submission via alternative endpoint for player:', playerId);
+    
+    const response = await fetch(`${API_BASE_URL}/admin/submit-ranking`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        playerId,
+        position: parseInt(position),
+        groupSize: parseInt(groupSize),
+        adminOverride: true,
+        bypassTimeCheck: true
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      console.error('Admin submit ranking error response:', errorData);
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('Admin submit ranking success response:', data);
+    return data;
+  } catch (error) {
+    console.error('Submit ranking for player error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to submit ranking for player'
+    };
+  }
+};
+
+// Admin function to submit rankings for entire group - REMOVED TIME CONSTRAINTS
+export const submitGroupRankings = async (groupRankings) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/players/submit-group-rankings`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ 
+        rankings: groupRankings,
+        adminOverride: true,
+        bypassTimeCheck: true
+      }),
+    });
+    
+    return await handleResponse(response);
+  } catch (error) {
+    console.error('Submit group rankings error:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to submit group rankings'
+    };
+  }
+};
+
+// Add self as player
 export const addSelfAsPlayer = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/add-self`, {
@@ -155,7 +217,7 @@ export const addSelfAsPlayer = async () => {
   }
 };
 
-// NEW: Update my playing status (for current user)
+// Update my playing status (for current user)
 export const updateMyPlayingStatus = async (isPlaying) => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/my-status`, {
@@ -174,7 +236,7 @@ export const updateMyPlayingStatus = async (isPlaying) => {
   }
 };
 
-// Admin: Add any player (existing)
+// Admin: Add any player
 export const addPlayer = async (playerData) => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/add`, {
@@ -212,7 +274,7 @@ export const addPlayerToLadder = async (playerData) => {
   }
 };
 
-// Admin: Update player status (existing)
+// Admin: Update player status
 export const updatePlayerStatus = async (playerId, isPlaying) => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/${playerId}/status`, {
@@ -231,7 +293,7 @@ export const updatePlayerStatus = async (playerId, isPlaying) => {
   }
 };
 
-// Admin: Mark player as no-show (existing)
+// Admin: Mark player as no-show
 export const markPlayerNoShow = async (playerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/${playerId}/no-show`, {
@@ -249,7 +311,7 @@ export const markPlayerNoShow = async (playerId) => {
   }
 };
 
-// Admin: Remove player (existing)
+// Admin: Remove player
 export const removePlayer = async (playerId) => {
   try {
     const response = await fetch(`${API_BASE_URL}/players/${playerId}`, {
@@ -267,54 +329,18 @@ export const removePlayer = async (playerId) => {
   }
 };
 
-// NEW: Utility function to check ranking submission time on client side
+// REMOVED TIME CONSTRAINTS - Always return true for admin usage
 export const isRankingSubmissionTime = () => {
-  const now = new Date();
-  
-  // Convert to PST (UTC-8) or PDT (UTC-7)
-  const isDST = (date) => {
-    const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-    const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-    return Math.max(jan, jul) !== date.getTimezoneOffset();
-  };
-  
-  const pstOffset = isDST(now) ? -7 : -8;
-  const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
-  
-  const dayOfWeek = pstTime.getDay(); // 0 = Sunday, 4 = Thursday
-  const hours = pstTime.getHours();
-  const minutes = pstTime.getMinutes();
-  
-  // Allow submission from Thursday 6:01 PM through next Thursday 5:59 PM
-  if (dayOfWeek === 4) {
-    return hours > 18 || (hours === 18 && minutes >= 1);
-  }
-  
-  // Friday through Wednesday - always allow
-  return dayOfWeek >= 5 || dayOfWeek <= 3;
+  return true; // Always allow submissions for admin
 };
 
-// NEW: Get next submission window
+// REMOVED TIME CONSTRAINTS - Return current time for reference
 export const getNextSubmissionWindow = () => {
   const now = new Date();
-  const isDST = (date) => {
-    const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-    const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-    return Math.max(jan, jul) !== date.getTimezoneOffset();
-  };
-  
-  const pstOffset = isDST(now) ? -7 : -8;
-  const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
-  
-  // Find next Thursday 6:01 PM
-  const daysUntilThursday = (4 - pstTime.getDay() + 7) % 7;
-  const nextThursday = new Date(pstTime);
-  nextThursday.setDate(pstTime.getDate() + (daysUntilThursday === 0 ? 7 : daysUntilThursday));
-  nextThursday.setHours(18, 1, 0, 0);
   
   return {
-    date: nextThursday,
-    formatted: nextThursday.toLocaleDateString('en-US', { 
+    date: now,
+    formatted: now.toLocaleDateString('en-US', { 
       weekday: 'long',
       month: 'long', 
       day: 'numeric',

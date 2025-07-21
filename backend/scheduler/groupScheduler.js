@@ -1,4 +1,4 @@
-// backend/scheduler/groupScheduler.js - Automated group formation
+// backend/scheduler/groupScheduler.js 
 const Player = require('../models/Player');
 
 class GroupScheduler {
@@ -6,7 +6,7 @@ class GroupScheduler {
     this.isRunning = false;
   }
 
-  // Main scheduler function - call this every minute from a cron job
+  // MODIFIED: Allow manual group formation anytime
   async checkAndFormGroups() {
     if (this.isRunning) {
       console.log('Group formation already in progress, skipping...');
@@ -15,30 +15,10 @@ class GroupScheduler {
 
     try {
       this.isRunning = true;
-      console.log('Checking if groups should be formed...');
+      console.log('Manual group formation requested...');
 
-      const shouldForm = Player.shouldFormNewGroups();
-      
-      if (!shouldForm) {
-        console.log('Not time to form groups yet');
-        return;
-      }
-
-      // Check if groups have already been formed for this week
-      const currentWeekThursday = Player.getCurrentWeekThursday();
-      const existingGroups = await Player.find({
-        'currentWeekGroup.weekStartDate': {
-          $gte: new Date(currentWeekThursday.getTime() - 60 * 60 * 1000), // 1 hour buffer
-          $lte: new Date(currentWeekThursday.getTime() + 60 * 60 * 1000)
-        }
-      });
-
-      if (existingGroups.length > 0) {
-        console.log('Groups already formed for this week');
-        return;
-      }
-
-      console.log('Forming groups automatically...');
+      // REMOVED: Time check - allow formation anytime
+      console.log('Forming groups (time constraints removed)...');
       await this.formGroups();
       console.log('Groups formed successfully!');
 
@@ -49,7 +29,7 @@ class GroupScheduler {
     }
   }
 
-  // Form groups function
+  // Form groups function (unchanged logic, but no time restrictions)
   async formGroups() {
     try {
       // Get all playing players sorted by lifetime points (highest first)
@@ -61,8 +41,9 @@ class GroupScheduler {
         return [];
       }
 
-      const currentWeekThursday = Player.getCurrentWeekThursday();
-      console.log(`Forming groups for week starting: ${currentWeekThursday}`);
+      // MODIFIED: Use current date instead of specific Thursday calculation
+      const currentWeekStart = new Date();
+      console.log(`Forming groups for week starting: ${currentWeekStart}`);
 
       // Form groups of 4 (with last group possibly having 5)
       const groups = [];
@@ -113,7 +94,7 @@ class GroupScheduler {
           player.currentWeekGroup = {
             groupNumber: groupIndex + 1,
             groupPosition: playerIndex + 1,
-            weekStartDate: currentWeekThursday,
+            weekStartDate: currentWeekStart, // Use current date
             hasSubmittedRanking: false
           };
           
@@ -133,7 +114,7 @@ class GroupScheduler {
     }
   }
 
-  // Manual trigger for admin use
+  // Manual trigger for admin use (no restrictions)
   async manualFormGroups() {
     if (this.isRunning) {
       throw new Error('Group formation already in progress');
@@ -141,7 +122,7 @@ class GroupScheduler {
 
     try {
       this.isRunning = true;
-      console.log('Manually forming groups...');
+      console.log('Manually forming groups (no time restrictions)...');
       const groups = await this.formGroups();
       console.log('Manual group formation completed');
       return groups;
@@ -150,14 +131,14 @@ class GroupScheduler {
     }
   }
 
-  // Get status for monitoring
+  // Get status for monitoring (modified to remove time checks)
   getStatus() {
     return {
       isRunning: this.isRunning,
-      shouldFormGroups: Player.shouldFormNewGroups(),
-      isRankingTime: Player.isRankingSubmissionTime(),
-      nextThursday: Player.getCurrentWeekThursday(),
-      currentTime: new Date()
+      shouldFormGroups: true, // Always allow forming groups
+      isRankingTime: true, // Always allow ranking submissions
+      currentTime: new Date(),
+      timeConstraintsRemoved: true
     };
   }
 }

@@ -1,4 +1,4 @@
-// backend/models/Player.js
+// backend/models/Player.js 
 const mongoose = require('mongoose');
 
 const playerSchema = new mongoose.Schema({
@@ -34,7 +34,7 @@ const playerSchema = new mongoose.Schema({
     default: 0,
   },
   
-  // NEW: Current week group tracking
+  // Current week group tracking
   currentWeekGroup: {
     groupNumber: {
       type: Number,
@@ -51,10 +51,14 @@ const playerSchema = new mongoose.Schema({
     hasSubmittedRanking: {
       type: Boolean,
       default: false
+    },
+    finalRanking: {
+      type: Number,
+      default: null
     }
   },
   
-  // NEW: Last week group tracking
+  // Last week group tracking
   lastWeekGroup: {
     groupNumber: {
       type: Number,
@@ -114,7 +118,9 @@ const playerSchema = new mongoose.Schema({
   updatedAt: {
     type: Date,
     default: Date.now,
-  },
+  }
+}, {
+  timestamps: true
 });
 
 // Update the updatedAt field before saving
@@ -126,98 +132,58 @@ playerSchema.pre('save', function(next) {
 // Ensure one player per user (prevent duplicates)
 playerSchema.index({ userId: 1 }, { unique: true });
 
-// Index for leaderboard queries
-playerSchema.index({ lifetimePoints: -1 });
+// REMOVED TIME-BASED STATIC METHODS - Simplified helper methods
 
-// NEW: Method to check if current week groups should be formed
-playerSchema.statics.shouldFormNewGroups = function() {
-  const now = new Date();
-  
-  // Convert to PST/PDT
-  const isDST = (date) => {
-    const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-    const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-    return Math.max(jan, jul) !== date.getTimezoneOffset();
-  };
-  
-  const pstOffset = isDST(now) ? -7 : -8;
-  const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
-  
-  const dayOfWeek = pstTime.getDay(); // 0 = Sunday, 4 = Thursday
-  const hours = pstTime.getHours();
-  const minutes = pstTime.getMinutes();
-  
-  // Thursday after 6:01 PM PST
-  return dayOfWeek === 4 && (hours > 18 || (hours === 18 && minutes >= 1));
-};
-
-// NEW: Method to check if it's ranking submission time
-playerSchema.statics.isRankingSubmissionTime = function() {
-  const now = new Date();
-  
-  // Convert to PST/PDT
-  const isDST = (date) => {
-    const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-    const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-    return Math.max(jan, jul) !== date.getTimezoneOffset();
-  };
-  
-  const pstOffset = isDST(now) ? -7 : -8;
-  const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
-  
-  const dayOfWeek = pstTime.getDay();
-  
-  // Allow submission from Thursday 6:01 PM through next Thursday 5:59 PM
-  if (dayOfWeek === 4) {
-    const hours = pstTime.getHours();
-    const minutes = pstTime.getMinutes();
-    return hours > 18 || (hours === 18 && minutes >= 1);
-  }
-  
-  // Friday through Wednesday - always allow
-  return dayOfWeek >= 5 || dayOfWeek <= 3;
-};
-
-// NEW: Method to get current week Thursday
+// Simple helper to get current date (no timezone calculations)
 playerSchema.statics.getCurrentWeekThursday = function() {
-  const now = new Date();
-  
-  // Convert to PST/PDT
-  const isDST = (date) => {
-    const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-    const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-    return Math.max(jan, jul) !== date.getTimezoneOffset();
-  };
-  
-  const pstOffset = isDST(now) ? -7 : -8;
-  const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
-  
-  const dayOfWeek = pstTime.getDay();
-  
-  let thursday;
-  if (dayOfWeek <= 4) {
-    // Before or on Thursday - get this Thursday
-    const daysUntilThursday = 4 - dayOfWeek;
-    thursday = new Date(pstTime);
-    thursday.setDate(pstTime.getDate() + daysUntilThursday);
-  } else {
-    // After Thursday - get next Thursday
-    const daysUntilNextThursday = 7 - dayOfWeek + 4;
-    thursday = new Date(pstTime);
-    thursday.setDate(pstTime.getDate() + daysUntilNextThursday);
-  }
-  
-  thursday.setHours(18, 1, 0, 0); // 6:01 PM PST
-  return thursday;
+  return new Date(); // Just return current date
 };
 
-// Calculate current rank based on lifetime points
-playerSchema.methods.getCurrentRank = async function() {
-  const Player = this.constructor;
-  const betterPlayers = await Player.countDocuments({
-    lifetimePoints: { $gt: this.lifetimePoints }
-  });
-  return betterPlayers + 1;
+// REMOVED: Complex time-based validation
+// Always allow ranking submissions
+playerSchema.statics.isRankingSubmissionTime = function() {
+  return true; // Always allow submissions
 };
+
+// REMOVED: Complex time-based group formation logic
+// Always allow group formation
+playerSchema.statics.shouldFormNewGroups = function() {
+  return true; // Always allow group formation
+};
+
+// Helper method to get player statistics (unchanged)
+playerSchema.methods.getStats = function() {
+  return {
+    name: this.name,
+    lifetimePoints: this.lifetimePoints,
+    weeksPlayed: this.weeksPlayed,
+    averagePoints: this.weeksPlayed > 0 ? (this.lifetimePoints / this.weeksPlayed).toFixed(2) : 0,
+    isPlaying: this.isPlaying,
+    currentGroup: this.currentWeekGroup?.groupNumber || null,
+    lastWeekPoints: this.lastWeekPoints
+  };
+};
+
+// Helper method to get recent performance (unchanged)
+playerSchema.methods.getRecentPerformance = function(weeks = 5) {
+  const recentHistory = this.weeklyHistory
+    .sort((a, b) => new Date(b.week) - new Date(a.week))
+    .slice(0, weeks);
+    
+  return {
+    recentGames: recentHistory.length,
+    recentPoints: recentHistory.reduce((sum, game) => sum + game.points, 0),
+    recentAverage: recentHistory.length > 0 ? 
+      (recentHistory.reduce((sum, game) => sum + game.points, 0) / recentHistory.length).toFixed(2) : 0,
+    history: recentHistory
+  };
+};
+
+// Add index for better query performance
+playerSchema.index({ lifetimePoints: -1 });
+playerSchema.index({ 'currentWeekGroup.groupNumber': 1 });
+playerSchema.index({ 'lastWeekGroup.groupNumber': 1 });
+playerSchema.index({ isPlaying: 1 });
+playerSchema.index({ userId: 1 });
 
 module.exports = mongoose.model('Player', playerSchema);

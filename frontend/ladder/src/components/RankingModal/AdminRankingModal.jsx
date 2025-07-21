@@ -1,4 +1,4 @@
-// src/components/AdminRankingModal/AdminRankingModal.jsx
+// src/components/RankingModal/AdminRankingModal.jsx
 import React, { useState, useEffect } from 'react';
 
 const AdminRankingModal = ({ 

@@ -1,3 +1,4 @@
+// src/pages/Ladder/DoublesGroup.jsx 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar2 from '../../components/Navbar/Navbar2';
@@ -96,73 +97,6 @@ const DoublesGroup = ({ currentUser: propCurrentUser }) => {
     }
   };
 
-  // Check if it's ranking submission time
-  const isSubmissionTimeValid = () => {
-    const now = new Date();
-    
-    // Convert to PST (UTC-8) or PDT (UTC-7)
-    const isDST = (date) => {
-      const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-      const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-      return Math.max(jan, jul) !== date.getTimezoneOffset();
-    };
-    
-    const pstOffset = isDST(now) ? -7 : -8;
-    const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
-    
-    const dayOfWeek = pstTime.getDay(); // 0 = Sunday, 4 = Thursday
-    const hours = pstTime.getHours();
-    const minutes = pstTime.getMinutes();
-    
-    // Allow submission from Thursday 6:01 PM through next Thursday 5:59 PM
-    if (dayOfWeek === 4) {
-      return hours > 18 || (hours === 18 && minutes >= 1);
-    }
-    
-    // Friday through Wednesday - always allow
-    return dayOfWeek >= 5 || dayOfWeek <= 3;
-  };
-
-  const getNextSubmissionTime = () => {
-    const now = new Date();
-    const isDST = (date) => {
-      const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-      const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-      return Math.max(jan, jul) !== date.getTimezoneOffset();
-    };
-    
-    const pstOffset = isDST(now) ? -7 : -8;
-    const pstTime = new Date(now.getTime() + (pstOffset * 60 * 60 * 1000));
-    
-    // Find next Thursday
-    const daysUntilThursday = (4 - pstTime.getDay() + 7) % 7;
-    const nextThursday = new Date(pstTime);
-    nextThursday.setDate(pstTime.getDate() + (daysUntilThursday === 0 ? 7 : daysUntilThursday));
-    nextThursday.setHours(18, 1, 0, 0); // 6:01 PM
-    
-    return nextThursday.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      month: 'long', 
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    });
-  };
-
-  const handleEnterResult = () => {
-    if (!isSubmissionTimeValid()) {
-      alert(`Ranking submission is only available from Thursday 6:01 PM PST through next Thursday 5:59 PM PST.\n\nNext submission window: ${getNextSubmissionTime()}`);
-      return;
-    }
-    
-    if (!currentUserGroup) {
-      alert('You are not in a group this week. Please make sure you signed up to play.');
-      return;
-    }
-    
-    setShowRankingModal(true);
-  };
-
   const handleCloseRankingModal = () => {
     setShowRankingModal(false);
   };
@@ -199,29 +133,20 @@ const DoublesGroup = ({ currentUser: propCurrentUser }) => {
     setShowAlert(false);
   };
 
-  const getThursdayDates = () => {
+  // Get current week dates for display
+  const getWeekDates = () => {
     const today = new Date();
-    
-    // Convert to PST/PDT
-    const isDST = (date) => {
-      const jan = new Date(date.getFullYear(), 0, 1).getTimezoneOffset();
-      const jul = new Date(date.getFullYear(), 6, 1).getTimezoneOffset();
-      return Math.max(jan, jul) !== date.getTimezoneOffset();
-    };
-    
-    const pstOffset = isDST(today) ? -7 : -8;
-    const pstTime = new Date(today.getTime() + (pstOffset * 60 * 60 * 1000));
-    const currentDay = pstTime.getDay();
+    const currentDay = today.getDay();
     
     let thisThursday;
     if (currentDay <= 4) {
       const daysUntilThursday = 4 - currentDay;
-      thisThursday = new Date(pstTime);
-      thisThursday.setDate(pstTime.getDate() + daysUntilThursday);
+      thisThursday = new Date(today);
+      thisThursday.setDate(today.getDate() + daysUntilThursday);
     } else {
       const daysUntilNextThursday = 7 - currentDay + 4;
-      thisThursday = new Date(pstTime);
-      thisThursday.setDate(pstTime.getDate() + daysUntilNextThursday);
+      thisThursday = new Date(today);
+      thisThursday.setDate(today.getDate() + daysUntilNextThursday);
     }
     
     const lastThursday = new Date(thisThursday);
@@ -239,15 +164,14 @@ const DoublesGroup = ({ currentUser: propCurrentUser }) => {
     };
   };
 
-  const { lastThursday, thisThursday } = getThursdayDates();
-  const canSubmitResult = isSubmissionTimeValid();
+  const { lastThursday, thisThursday } = getWeekDates();
 
   const renderGroups = (groups, isLastWeek = false) => {
     if (!Array.isArray(groups) || groups.length === 0) {
       return (
         <div className="doubles-empty-state">
           <p>No groups available for {isLastWeek ? 'last week' : 'this week'}.</p>
-          {!isLastWeek && <p>Groups will be formed automatically every Thursday at 6:01 PM PST.</p>}
+          {!isLastWeek && <p>Groups can be formed manually by an admin at any time.</p>}
         </div>
       );
     }
@@ -347,14 +271,6 @@ const DoublesGroup = ({ currentUser: propCurrentUser }) => {
               {typeof error === 'string' ? error : 'An error occurred'}
             </div>
           )}
-          <button
-            className="doubles-add-player-btn"
-            onClick={handleEnterResult}
-            disabled={!canSubmitResult}
-            title={!canSubmitResult ? `Available from Thursday 6:01 PM PST through next Thursday 5:59 PM PST. Next: ${getNextSubmissionTime()}` : ''}
-          >
-            Enter Result
-          </button>
         </div>
       </div>
       
@@ -377,7 +293,7 @@ const DoublesGroup = ({ currentUser: propCurrentUser }) => {
         
         {showAlert && activeTab === 'thisWeek' && (
           <div className="doubles-alert-banner">
-            ALERT: After your matches, please enter rankings for your group.
+            ALERT: After your matches, please wait for admin to key in the ranking.
           </div>
         )}
         

@@ -16,10 +16,10 @@ const isAdmin = (req, res, next) => {
   next();
 };
 
-// Helper function to form groups
+// Helper function to form groups - REMOVED TIME CONSTRAINTS
 const formGroups = async () => {
   try {
-    console.log('Starting group formation...');
+    console.log('Starting group formation (no time restrictions)...');
     
     // Get all playing players sorted by lifetime points (highest first)
     const playingPlayers = await Player.find({ isPlaying: true })
@@ -30,7 +30,8 @@ const formGroups = async () => {
       return [];
     }
     
-    const currentWeekThursday = Player.getCurrentWeekThursday();
+    // Use current date instead of specific Thursday calculation
+    const currentWeekStart = new Date();
     
     // FIRST: Move all current week data to last week data for ALL players
     const allPlayers = await Player.find({});
@@ -99,7 +100,7 @@ const formGroups = async () => {
         player.currentWeekGroup = {
           groupNumber: groupIndex + 1,
           groupPosition: playerIndex + 1,
-          weekStartDate: currentWeekThursday,
+          weekStartDate: currentWeekStart, // Use current date
           hasSubmittedRanking: false
         };
         
@@ -117,7 +118,7 @@ const formGroups = async () => {
   }
 };
 
-// Auto-trigger group formation (call this from a scheduled job)
+// Auto-trigger group formation (REMOVED TIME RESTRICTIONS)
 router.post('/form-groups', authenticateToken, isAdmin, async (req, res) => {
   try {
     const groups = await formGroups();
@@ -161,13 +162,9 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get current week groups
 router.get('/current-groups', authenticateToken, async (req, res) => {
   try {
-    const currentWeekThursday = Player.getCurrentWeekThursday();
-    
+    // SIMPLIFIED: Get all players with current week group data (no date filtering)
     const players = await Player.find({
-      'currentWeekGroup.weekStartDate': {
-        $gte: new Date(currentWeekThursday.getTime() - 24 * 60 * 60 * 1000), // Allow some buffer
-        $lte: new Date(currentWeekThursday.getTime() + 24 * 60 * 60 * 1000)
-      }
+      'currentWeekGroup.groupNumber': { $ne: null }
     })
     .populate('userId', 'name email')
     .sort({ 
@@ -188,7 +185,7 @@ router.get('/current-groups', authenticateToken, async (req, res) => {
     res.json({
       success: true,
       groups: Object.values(groups),
-      weekStartDate: currentWeekThursday
+      weekStartDate: new Date()
     });
   } catch (error) {
     console.error('Get current groups error:', error);
@@ -255,43 +252,47 @@ router.get('/last-groups', authenticateToken, async (req, res) => {
   }
 });
 
-// Submit player ranking
+// Submit player ranking - REMOVED ALL TIME CONSTRAINTS
 router.post('/submit-ranking', authenticateToken, async (req, res) => {
   try {
-    const { position, groupSize } = req.body;
+    const { position, groupSize, playerId, adminOverride, bypassTimeCheck } = req.body;
     
-    // Check if it's valid submission time
-    if (!Player.isRankingSubmissionTime()) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'Ranking submission is not available at this time' 
-      });
-    }
+    // REMOVED: Time validation - always allow submissions
+    console.log('Processing ranking submission (no time restrictions)');
     
-    // Find the player for this user
-    const player = await Player.findOne({ userId: req.user._id });
-    if (!player) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Player profile not found' 
-      });
+    let targetPlayer;
+    
+    // If playerId is provided (admin functionality), find that player
+    if (playerId) {
+      console.log('Admin submission for player ID:', playerId);
+      targetPlayer = await Player.findById(playerId);
+      if (!targetPlayer) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Target player not found' 
+        });
+      }
+    } else {
+      // Find the player for the current user
+      targetPlayer = await Player.findOne({ userId: req.user._id });
+      if (!targetPlayer) {
+        return res.status(404).json({ 
+          success: false,
+          message: 'Player profile not found' 
+        });
+      }
     }
     
     // Check if player is in a current group
-    if (!player.currentWeekGroup || !player.currentWeekGroup.groupNumber) {
+    if (!targetPlayer.currentWeekGroup || !targetPlayer.currentWeekGroup.groupNumber) {
       return res.status(400).json({ 
         success: false,
-        message: 'You are not in a group this week' 
+        message: 'Player is not in a group this week' 
       });
     }
     
-    // Check if player has already submitted ranking this week
-    if (player.currentWeekGroup.hasSubmittedRanking) {
-      return res.status(400).json({ 
-        success: false,
-        message: 'You have already submitted your ranking for this week' 
-      });
-    }
+    // REMOVED: Check for already submitted ranking (allow resubmission)
+    console.log('Allowing ranking submission/resubmission');
     
     // Validate position and group size
     const numPosition = parseInt(position);
@@ -329,34 +330,52 @@ router.post('/submit-ranking', authenticateToken, async (req, res) => {
       }
     }
     
-    // Update player points and ranking
-    player.lifetimePoints += points;
-    player.lastWeekPoints = points; // This will be used when moving to lastWeekGroup
-    player.weeksPlayed += 1;
-    player.currentWeekGroup.hasSubmittedRanking = true;
-    player.currentWeekGroup.finalRanking = numPosition; // Store the final ranking
+    // If resubmitting, subtract previous points first
+    if (targetPlayer.currentWeekGroup.hasSubmittedRanking && targetPlayer.lastWeekPoints) {
+      targetPlayer.lifetimePoints -= targetPlayer.lastWeekPoints;
+      console.log(`Removed previous points: ${targetPlayer.lastWeekPoints}`);
+    }
     
-    // Add to weekly history
+    // Update player points and ranking
+    targetPlayer.lifetimePoints += points;
+    targetPlayer.lastWeekPoints = points; // This will be used when moving to lastWeekGroup
+    targetPlayer.weeksPlayed += targetPlayer.currentWeekGroup.hasSubmittedRanking ? 0 : 1; // Only increment if first submission
+    targetPlayer.currentWeekGroup.hasSubmittedRanking = true;
+    targetPlayer.currentWeekGroup.finalRanking = numPosition; // Store the final ranking
+    
+    // Add to weekly history (replace if resubmitting)
     const currentWeek = new Date();
-    player.weeklyHistory.push({
+    const existingHistoryIndex = targetPlayer.weeklyHistory.findIndex(
+      entry => entry.week.getTime() >= currentWeek.getTime() - (7 * 24 * 60 * 60 * 1000)
+    );
+    
+    const historyEntry = {
       week: currentWeek,
       points: points,
       position: numPosition,
       groupSize: numGroupSize,
-      groupNumber: player.currentWeekGroup.groupNumber,
+      groupNumber: targetPlayer.currentWeekGroup.groupNumber,
       scenario: 'PLAYED'
-    });
+    };
     
-    await player.save();
+    if (existingHistoryIndex >= 0) {
+      // Replace existing entry
+      targetPlayer.weeklyHistory[existingHistoryIndex] = historyEntry;
+    } else {
+      // Add new entry
+      targetPlayer.weeklyHistory.push(historyEntry);
+    }
     
-    console.log(`Player ${player.name} submitted ranking: Position ${numPosition}/${numGroupSize}, Points ${points}`);
+    await targetPlayer.save();
+    
+    console.log(`Player ${targetPlayer.name} submitted ranking: Position ${numPosition}/${numGroupSize}, Points ${points}`);
     
     res.json({
       success: true,
       message: 'Ranking submitted successfully',
       data: {
         weeklyPoints: points,
-        newLifetimePoints: player.lifetimePoints,
+        newLifetimePoints: targetPlayer.lifetimePoints,
         position: numPosition,
         groupSize: numGroupSize
       }
@@ -371,15 +390,15 @@ router.post('/submit-ranking', authenticateToken, async (req, res) => {
   }
 });
 
-// Check if groups should be formed (for automated scheduling)
+// REMOVED: Time-based group formation check
 router.get('/should-form-groups', async (req, res) => {
   try {
-    const shouldForm = Player.shouldFormNewGroups();
     res.json({
       success: true,
-      shouldFormGroups: shouldForm,
+      shouldFormGroups: true, // Always allow group formation
       currentTime: new Date(),
-      isRankingTime: Player.isRankingSubmissionTime()
+      isRankingTime: true, // Always allow ranking submissions
+      timeConstraintsRemoved: true
     });
   } catch (error) {
     console.error('Check form groups error:', error);
@@ -414,6 +433,7 @@ router.get('/debug-groups', authenticateToken, async (req, res) => {
       playingPlayers: allPlayers.filter(p => p.isPlaying).length,
       currentGroupPlayers: currentGroups.length,
       lastGroupPlayers: lastGroups.length,
+      timeConstraintsRemoved: true,
       
       currentGroupsData: currentGroups.map(p => ({
         name: p.name,
