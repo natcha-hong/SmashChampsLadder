@@ -122,3 +122,22 @@ npm run test:load         # Performance testing
 ✅ Calculate points correctly
 ✅ Display lifetime statistics
 ```
+
+###User for Test
+
+```
+Admin User: admin@smashchamps.com
+Password: admin123
+
+Player User: natcha@gmail.com
+Password: Natcha123
+
+Player User: jim@gmail.com
+Password: jim123
+```
+
+
+REACT_APP_API_URL = https://smashchampsladder-production.up.railway.app
+
+ LIVE Domain at:
+https://smashchampsladder.up.railway.app
