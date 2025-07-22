@@ -1,11 +1,9 @@
 // src/pages/Admin/AdminAnnouncement.jsx
 import React, { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import Navbar3 from '../../components/Navbar/Navbar3'
 import { getCurrentAnnouncement, updateAnnouncement } from '../../services/adminService'
 
 const AdminAnnouncement = () => {
-  const navigate = useNavigate()
   const [announcement, setAnnouncement] = useState({
     title: '',
     date: '',
@@ -77,11 +75,6 @@ const AdminAnnouncement = () => {
     } finally {
       setIsSaving(false)
     }
-  }
-
-  const handlePreview = () => {
-    // Navigate to regular announcement page to see preview
-    navigate('/annoucement')
   }
 
   if (isLoading) {
@@ -177,14 +170,6 @@ const AdminAnnouncement = () => {
                   className='admin-announcement-btn admin-announcement-btn-save'
                 >
                   {isSaving ? 'Saving...' : 'Save Changes'}
-                </button>
-                
-                <button
-                  type="button"
-                  onClick={handlePreview}
-                  className='admin-announcement-btn admin-announcement-btn-preview'
-                >
-                  Preview
                 </button>
               </div>
             </form>

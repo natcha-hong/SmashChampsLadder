@@ -32,13 +32,13 @@ Comprehensive testing strategy for SmashChamps Ladder covering Admin User and Pl
 
 ```javascript
 // Point calculation tests
-1st place: +2 points
-2nd place: +1 point
-3rd place: 0 points
-4th place: -1 point (4-player) / 0 points (5-player)
-5th place: -1 point
-No-show: -2 points
-Not playing: -1 point
+// 1st place: +2 points
+// 2nd place: +1 point
+// 3rd place: 0 points
+// 4th place: -1 point (4-player) / 0 points (5-player)
+// 5th place: -1 point
+// No-show: -2 points
+// Not playing: -1 point
 ```
 
 ### 5. UI/UX Tests
@@ -93,39 +93,39 @@ npm run test:load         # Performance testing
 
 ```javascript
 // Group Management
-✅ Create groups from active players
-✅ Enter rankings for groups
-✅ Handle invalid player data
-✅ Bulk ranking submissions
+// ✅ Create groups from active players
+// ✅ Enter rankings for groups
+// ✅ Handle invalid player data
+// ✅ Bulk ranking submissions
 
 // Player Management
-✅ Add new players
-✅ Update player status
-✅ Remove players from ladder
-✅ Apply penalties (no-show, not playing)
+// ✅ Add new players
+// ✅ Update player status
+// ✅ Remove players from ladder
+// ✅ Apply penalties (no-show, not playing)
 
 // Edit Announcement
-✅ Edit Announcement for player
+// ✅ Edit Announcement for player
 ```
 
 ### Player Workflows
 
 ```javascript
 // Ladder Participation
-✅ Join ladder as new player
-✅ Toggle playing status
-✅ View current ranking
-✅ View group assignments
+// ✅ Join ladder as new player
+// ✅ Toggle playing status
+// ✅ View current ranking
+// ✅ View group assignments
 
 // Ranking System
-✅ View ranking history
-✅ Calculate points correctly
-✅ Display lifetime statistics
+// ✅ View ranking history
+// ✅ Calculate points correctly
+// ✅ Display lifetime statistics
 ```
 
-###User for Test
+### User for Test
 
-```
+```text
 Admin User: admin@smashchamps.com
 Password: admin123
 
@@ -136,8 +136,8 @@ Player User: jim@gmail.com
 Password: jim123
 ```
 
+## Environment Configuration
 
-REACT_APP_API_URL = https://smashchampsladder-production.up.railway.app
+**API URL:** `https://smashchampsladder-production.up.railway.app`
 
- LIVE Domain at:
-https://smashchampsladder.up.railway.app
+**Live Domain:** [https://smashchampsladder.up.railway.app](https://smashchampsladder.up.railway.app)

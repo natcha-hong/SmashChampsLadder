@@ -5,7 +5,6 @@ import Navbar2 from '../../components/Navbar/Navbar3';
 import AdminRankingModal from '../../components/RankingModal/AdminRankingModal';
 import '../../App.css';
 import { getCurrentUser, isAuthenticated } from '../../services/authService';
-// Import admin service functions only - removed playerService imports
 import { 
   getCurrentGroups,
   getLastGroups,
